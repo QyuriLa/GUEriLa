@@ -45,6 +45,8 @@ class Games(commands.Cog):
                     random.shuffle(curr_reaction[2])
                     self.player1, self.player2 = curr_reaction[2]
                     return
+            
+            self.bot.remove_listener(on_reaction_remove)
         
         async def game():
             await ctx.send(

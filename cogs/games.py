@@ -1,5 +1,6 @@
 import random
 import discord
+import twelve_janggi as jg
 from discord.ext import commands
 
 class Games(commands.Cog):
@@ -11,9 +12,14 @@ class Games(commands.Cog):
     @commands.command(name="십이장기", aliases=["장기", "12"])
     async def twelve_janggi(self, ctx):
         """십이장기"""
+
+        READY_EMOJIS = ['💜', '💚', '🇷']
+
         async def ready():
-            ready_msg = await ctx.send("선공: 💚 / 후공: 💜 / 랜덤: 🇷")
-            for emoji in ['💚', '💜', '🇷']:
+            ready_msg = await ctx.send(
+                f"선공: {READY_EMOJIS[0]} / 후공: {READY_EMOJIS[1]} / 랜덤: {READY_EMOJIS[2]}"
+                )
+            for emoji in READY_EMOJIS:
                 await ready_msg.add_reaction(emoji)
                 curr_reaction = [[], [], []]
 
@@ -22,7 +28,7 @@ class Games(commands.Cog):
                 if reaction.message.id != ready_msg.id:
                     return
                 for i in range(3):
-                    if reaction.emoji == ('💚', '💜', '🇷')[i]:
+                    if reaction.emoji == READY_EMOJIS[i]:
                         curr_reaction[i].remove(user)
 
             while True:
@@ -30,7 +36,7 @@ class Games(commands.Cog):
                 if user.bot:
                     continue
                 for i in range(3):
-                    if reaction.emoji == ('💚', '💜', '🇷')[i]:
+                    if reaction.emoji == READY_EMOJIS[i]:
                         curr_reaction[i].append(user)
 
                 if len(curr_reaction[0]) == 1 and len(curr_reaction[1]) == 1:
@@ -39,13 +45,12 @@ class Games(commands.Cog):
                     self.player1 = curr_reaction[0][0]
                     self.player2 = curr_reaction[1][0]
                     return
-                elif len(curr_reaction[2]) == 2:
+                if len(curr_reaction[2]) == 2:
                     if curr_reaction[2][0] == curr_reaction[2][1]:
                         continue
                     random.shuffle(curr_reaction[2])
                     self.player1, self.player2 = curr_reaction[2]
                     return
-            
             self.bot.remove_listener(on_reaction_remove)
         
         async def game():

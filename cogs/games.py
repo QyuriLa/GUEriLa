@@ -30,7 +30,7 @@ class Games(commands.Cog):
         self.bot = bot
         self.player1 = None
         self.player2 = None
-
+    
     @commands.command(name="십이장기", aliases=["장기", "12"])
     async def twelve_janggi(self, ctx):
         """십이장기"""
@@ -41,7 +41,7 @@ class Games(commands.Cog):
                 f"선공: {READY_EMOJIS[0]} / 후공: {READY_EMOJIS[1]} / "
                 f"랜덤: {READY_EMOJIS[2]}"
                 )
-                
+            
             for emoji in READY_EMOJIS:
                 await ready_msg.add_reaction(emoji)
 
@@ -139,15 +139,7 @@ class Games(commands.Cog):
 
                 await message.delete()
                 await end_turn()
-            '''
-            임베드 전송
-            임베드 메시지에 반응 추가
-            채팅 혹은 반응 추가를 대기: 채팅 및 유저 반응을 삭제
-            만약 입력이 무효하면 안내 메시지 전송
-             아니면 턴 진행
-            만약 이겼으면 안내 메시지 전송 및 게임 종료
-             아니면 turn.for_red 토글하고 continue
-            '''
+
             def make_embed():
                 # 이모지 덱 생성
                 emoji_deck = []
@@ -206,9 +198,9 @@ class Games(commands.Cog):
 
         await ready()
         await play()
-    
-    @commands.command(name="설정", parent=twelve_janggi)
-    async def setting_twelve_janggi(self, ctx):
+
+    @commands.command(name="설정")
+    async def setting_twelve_janggi(self, ctx, parent=twelve_janggi):
         pass
 
 def setup(bot):

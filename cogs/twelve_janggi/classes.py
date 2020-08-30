@@ -48,13 +48,21 @@ class Lord(Piece):
         self.kanji = '侯'
         self.valid_moves = [-4, -3, -1, 1, 4, 5]
 
+class Empty:
+    def __init__(self):
+        self.symbol = 'e'
+        self.is_red = None
+
+    def __bool__(self):
+        return False
+
 
 class Table:
     def __init__(self):
         self.board = [
-            General(1), 0,      0,      Premier(0),
+            General(1), Empty(), Empty(), Premier(0),
             King(1),    Man(1), Man(0), King(0),
-            Premier(1), 0,      0,      General(0)
+            Premier(1), Empty(), Empty(), General(0)
             ]
         self.deck = []
 
@@ -88,8 +96,9 @@ class Turn:
     def _move(self):
         # 입력이 무효하면 예외 발생
         assert self.from_piece, 'from_sq에 말이 없음'
-        assert self.from_piece.is_red ^ self.to_piece.is_red, \
-            'to_sq에 자신의 말이 있음'
+        if not self.to_piece:
+            assert self.from_piece.is_red ^ self.to_piece.is_red, \
+                'to_sq에 자신의 말이 있음'
         if self.to_sq % 4 == 0:
             _valid_moves = [x % 4 != 3 for x in self.from_piece.valid_moves]
         elif self.to_sq % 4 == 3:
@@ -109,7 +118,7 @@ class Turn:
 
         # 이동 처리
         self.board[self.to_sq] = self.board[self.from_sq]
-        self.board[self.from_sq] = 0
+        self.board[self.from_sq] = Empty()
 
         # 승급 처리
         if (isinstance(self.from_piece, Man)

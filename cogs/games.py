@@ -17,12 +17,12 @@ ACTION_KWDS = [
     '1', '2', '3', '4', '5', '6'
     ]
 JG_EMOJIS = {
-    jg.General: ['🟪⬆️🟪⬅️✝️➡️🟪⬇️🟪', '🟩⬆️🟩⬅️❇️➡️🟩⬇️🟩'],
-    jg.Premier: ['↖️🟪↗️🟪♓🟪↙️🟪↘️', '↖️🟩↗️🟩❎🟩↙️🟩↘️'],
-    jg.King: ['↖️⬆️↗️⬅️☸️➡️↙️⬇️↘️', '↖️⬆️↗️⬅️✳️➡️↙️⬇️↘️'],
-    jg.Man: ['🟪🟪🟪🟪♌➡️🟪🟪🟪', '🟩🟩🟩⬅️✅🟩🟩🟩🟩'],
-    jg.Lord: ['🟪⬆️↗️⬅️☪️➡️🟪⬇️↘️', '↖️⬆️🟩⬅️🈯➡️↙️⬇️🟩'],
-    0: '⬜'*9
+    'g': ['🟪⬆🟪⬅✝➡🟪⬇🟪', '🟩⬆🟩⬅❇➡🟩⬇🟩'],
+    'p': ['↖🟪↗🟪♓🟪↙🟪↘', '↖🟩↗🟩❎🟩↙🟩↘'],
+    'k': ['↖⬆↗⬅☸➡↙⬇↘', '↖⬆↗⬅✳➡↙⬇↘'],
+    'm': ['🟪🟪🟪🟪♌➡🟪🟪🟪', '🟩🟩🟩⬅✅🟩🟩🟩🟩'],
+    'l': ['🟪⬆↗⬅☪➡🟪⬇↘', '↖⬆🟩⬅🈯➡↙⬇🟩'],
+    'e': ['', '⬜'*9]
     }
 
 class Games(commands.Cog):
@@ -134,8 +134,6 @@ class Games(commands.Cog):
                         pass
                 if not turn_fail_msg:
                     turn_fail_msg = await ctx.send("유효하지 않은 입력")
-                
-
 
                 await message.delete()
                 await end_turn()
@@ -144,15 +142,18 @@ class Games(commands.Cog):
                 # 이모지 덱 생성
                 emoji_deck = []
                 for i in range(0, 9, 3):
-                    emoji_deck.append('⬛'.join(JG_EMOJIS[key][i:i+3]
-                                               for key in game.table.deck))
+                    emoji_deck.append('⬛'.join(
+                        JG_EMOJIS[piece.symbol]
+                        [0 if game.red_turn else 1][i:i+3]
+                        for piece in game.table.deck
+                        ))
                 # 임베드 생성
                 [curr_player, curr_color] \
                     = [self.player1, 0xaa8ed6] if game.red_turn \
                     else [self.player2, 0x78b159]
                 self.embed = discord.Embed(title='잡힌 말', color=curr_color,
                                       description='\n'.join(emoji_deck))
-                self.embed.set_author(name=curr_player.nick + '차례',
+                self.embed.set_author(name=str(curr_player) + '차례',
                                  icon_url=str(curr_player.avatar_url))
 
                 # 이모지 보드 생성 및 임베드에 추가
@@ -160,14 +161,18 @@ class Games(commands.Cog):
                     emoji_board = []
                     for j in range(3):
                         emoji_board.append(
-                            '⬛'.join(JG_EMOJIS[key][j*3:(j+1)*3]
-                                     for key in game.table.board[i*4:(i+1)*4])
+                            '⬛'.join(
+                                JG_EMOJIS[piece.symbol]
+                                [0 if piece.is_red else 1][j*3:(j+1)*3]
+                                for piece in game.table.board[i*4:(i+1)*4]
+                                )
                             )
                     self.embed.add_field(
-                        name='말판' if i == 0 else ' ',
+                        name='말판' if i == 0 else '⬛',
                         value='\n'.join(emoji_board), inline=False
                         )
                 #TODO: self.embed.set_footer()로 타이머 표시, 10초마다 갱신
+                return self.embed
 
             async def end_turn():
                 if not game.finished:
@@ -177,7 +182,7 @@ class Games(commands.Cog):
                     cause = "왕을 잡았습니다!" if game.killed_king \
                         else "왕이 적진에서 한 턴을 버텼습니다!"
                     self.embed = discord.Embed(
-                        title=f'{winner.nick}의 승리!', color=0xffffff,
+                        title=f'{str(winner)}의 승리!', color=0xffffff,
                         description=cause
                         )
                     self.embed.set_author(name='십이장기')
@@ -193,7 +198,8 @@ class Games(commands.Cog):
 
             # 최초 임베드 메시지 전송 및 반응 추가
             game_msg = await ctx.send(embed=make_embed())
-            for emoji in ACTION_EMOJIS[:12+len(game.table.deck)]:
+            for emoji in ACTION_EMOJIS[:18]:
+                #TODO: len(game.table.deck)에 따라 반응 추가하고 지우기
                 await game_msg.add_reaction(emoji)
 
         await ready()

@@ -1,6 +1,6 @@
 import random
 import discord
-import twelve_janggi as jg
+from .twelve_janggi import classes as jg
 from discord.ext import commands
 
 READY_EMOJIS = ['💜', '💚', '🇷']
@@ -41,6 +41,7 @@ class Games(commands.Cog):
                 f"선공: {READY_EMOJIS[0]} / 후공: {READY_EMOJIS[1]} / "
                 f"랜덤: {READY_EMOJIS[2]}"
                 )
+                
             for emoji in READY_EMOJIS:
                 await ready_msg.add_reaction(emoji)
 

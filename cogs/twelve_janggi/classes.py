@@ -150,16 +150,18 @@ class Game:
         except:
             return
 
-        recent_turn = self.turn_history[-2]
-        if isinstance(self.turn_history[-1].to_piece, King):
-            self.finished = True
-            self.killed_king = True
-            self.red_won = self.red_turn
-        elif (isinstance(recent_turn.from_piece, King)
-              and recent_turn.to_sq // 4 == recent_turn.enemy_line):
-            self.finished = True
-            self.killed_king = False
-            self.red_won = not self.red_turn
-        else:
-            self.finished = False
-            self.red_turn ^= True
+        if len(self.turn_history) > 2:
+            recent_turn = self.turn_history[-2]
+            if isinstance(self.turn_history[-1].to_piece, King):
+                self.finished = True
+                self.killed_king = True
+                self.red_won = self.red_turn
+                return
+            if (isinstance(recent_turn.from_piece, King)
+                and recent_turn.to_sq // 4 == recent_turn.enemy_line):
+                self.finished = True
+                self.killed_king = False
+                self.red_won = not self.red_turn
+                return
+        self.finished = False
+        self.red_turn ^= True

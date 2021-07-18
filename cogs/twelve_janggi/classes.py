@@ -96,16 +96,19 @@ class Turn:
     def _move(self):
         # 입력이 무효하면 예외 발생
         assert self.from_piece, 'from_sq에 말이 없음'
-        if not self.to_piece:
+        if self.to_piece.is_red is not None:
             assert self.from_piece.is_red ^ self.to_piece.is_red, \
                 'to_sq에 자신의 말이 있음'
         if self.to_sq % 4 == 0:
-            _valid_moves = [x % 4 != 3 for x in self.from_piece.valid_moves]
+            _valid_moves = [x for x in self.from_piece.valid_moves if x % 4 != 3]
         elif self.to_sq % 4 == 3:
-            _valid_moves = [x % 4 != 0 for x in self.from_piece.valid_moves]
+            _valid_moves = [x for x in self.from_piece.valid_moves if x % 4 != 1]
         else:
             _valid_moves = self.from_piece.valid_moves
-        assert self.to_sq - self.from_sq not in _valid_moves, \
+        if not self.for_red:
+            _valid_moves = [-x for x in _valid_moves]
+        
+        assert self.to_sq - self.from_sq in _valid_moves, \
             'from_piece의 이동 반경을 벗어남'
         
         # 말 잡기 처리
@@ -114,7 +117,6 @@ class Turn:
             if isinstance(self.to_piece, Lord):
                 self.to_piece = Man(self.to_piece.is_red)
             self.deck.append(self.to_piece)
-            self.deck.sort()
 
         # 이동 처리
         self.board[self.to_sq] = self.board[self.from_sq]
@@ -127,7 +129,8 @@ class Turn:
         
     def _put(self):
         # 입력이 무효하면 예외 발생
-        if self.to_piece or self.to_sq // 4 == self.enemy_line:
+        if (self.to_piece.is_red is not None
+                or self.to_sq // 4 == self.enemy_line):
             raise Exception('유효하지 않은 배치')
         
         # 배치 처리
@@ -145,10 +148,7 @@ class Game:
         self.red_won = None
     
     def turn(self, from_to):
-        try:
-            self.turn_history.append(Turn(self.table, from_to, self.red_turn))
-        except:
-            return
+        self.turn_history.append(Turn(self.table, from_to, self.red_turn))
 
         if len(self.turn_history) > 2:
             recent_turn = self.turn_history[-2]

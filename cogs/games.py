@@ -30,6 +30,7 @@ class Games(commands.Cog):
         self.bot = bot
         self.player1 = None
         self.player2 = None
+        self.turn_fail_msg = None
     
     @commands.command(name="십이장기", aliases=["장기", "12"])
     async def twelve_janggi(self, ctx):
@@ -47,8 +48,8 @@ class Games(commands.Cog):
 
             curr_reaction = [[], [], []]
 
-            @self.listener(name='jg_ready')
-            async def on_reaction_remove(reaction, user):
+            @self.bot.listen('on_reaction_remove')
+            async def jg_reaction_remove(reaction, user):
                 if reaction.message.id != ready_msg.id:
                     return
                 for i in range(3):
@@ -69,31 +70,26 @@ class Games(commands.Cog):
                         continue
                     self.player1 = curr_reaction[0][0]
                     self.player2 = curr_reaction[1][0]
-                    self.bot.remove_listener(on_reaction_remove,
-                                             name='jg_ready')
+                    self.bot.remove_listener(jg_reaction_remove,
+                                             name='on_reaction_remove')
                     return
                 if len(curr_reaction[2]) == 2:
                     if curr_reaction[2][0] == curr_reaction[2][1]:
                         continue
                     random.shuffle(curr_reaction[2])
                     self.player1, self.player2 = curr_reaction[2]
-                    self.bot.remove_listener(on_reaction_remove,
-                                             name='jg_ready')
+                    self.bot.remove_listener(jg_reaction_remove,
+                                             name='on_reaction_remove')
                     return
         
         async def play():
-            await ctx.send(
-                f"{self.player1.display_name}, {self.player2.display_name}"
-                )
-            await ctx.send("게임을 시작하지")
-
             game = jg.Game()
-            curr_player = self.player1
+            self.curr_player = self.player1
 
             curr_reaction = []
-            @self.listener(name='jg_reaction_add')
-            async def on_reaction_add(reaction, user):
-                if user != curr_player or reaction.message.id != game_msg.id:
+            @self.bot.listen(name='on_reaction_add')
+            async def jg_reaction_add(reaction, user):
+                if user != self.curr_player or reaction.message.id != game_msg.id:
                     return
                 curr_reaction.append(reaction.emoji)
                 if len(curr_reaction) != 2:
@@ -109,54 +105,60 @@ class Games(commands.Cog):
                     
                 # 유저 반응 삭제
                 for reaction_ in [i for i in game_msg.reactions if not i.me]:
-                    await reaction_.remove(curr_player)
+                    await reaction_.remove(self.curr_player)
             
-            @self.listener(name='jg_reaction_remove')
-            async def on_reaction_remove(reaction, user):
-                if user != curr_player or reaction.message.id != game_msg.id:
+            @self.bot.listen(name='on_reaction_remove')
+            async def jg_reaction_remove(reaction, user):
+                if user != self.curr_player or reaction.message.id != game_msg.id:
                     return
                 curr_reaction.remove(reaction.emoji)
             
-            turn_fail_msg = None
-            @self.listener(name='jg_message')
-            async def on_message(message):
-                if (message.author != curr_player
+            @self.bot.listen(name='on_message')
+            async def jg_message(message):
+                if (message.author != self.curr_player
                         or message.channel != ctx.channel
                         or len(message.content) != 2
                         or not message.content.isalnum()):
                     return
-                (x, y) = [ACTION_KWDS.index(i)
-                            for i in message.content.lower()]
-                for from_to in [(x, y), (y, x)]:
-                    try:
-                        game.turn(from_to)
-                    except ValueError:
-                        pass
-                if not turn_fail_msg:
-                    turn_fail_msg = await ctx.send("유효하지 않은 입력")
-
+                try:
+                    (x, y) = [ACTION_KWDS.index(i)
+                                for i in message.content.lower()]
+                except:
+                    return
                 await message.delete()
-                await end_turn()
+                try:
+                    game.turn((x, y))
+                    await end_turn()
+                    if self.turn_fail_msg is not None:
+                        await self.turn_fail_msg.delete()
+                        self.turn_fail_msg = None
+                except:
+                    if self.turn_fail_msg is None:
+                        self.turn_fail_msg = await ctx.send("잘못된 입력")
 
             def make_embed():
+                # 임베드 생성
+                [self.curr_player, curr_color] \
+                    = [self.player1, 0xaa8ed6] if game.red_turn \
+                    else [self.player2, 0x78b159]
+                self.embed = discord.Embed(
+                    title='십이장기', color=curr_color,
+                    description=f'{len(game.turn_history)+1}번째 턴'
+                    )
+                self.embed.set_author(name=str(self.curr_player) + ' 차례',
+                                 icon_url=str(self.curr_player.avatar_url))
                 # 이모지 덱 생성
                 emoji_deck = []
                 for i in range(0, 9, 3):
-                    emoji_deck.append('⬛'.join(
-                        JG_EMOJIS[piece.symbol]
-                        [0 if game.red_turn else 1][i:i+3]
-                        for piece in game.table.deck
-                        ))
-                # 임베드 생성
-                [curr_player, curr_color] \
-                    = [self.player1, 0xaa8ed6] if game.red_turn \
-                    else [self.player2, 0x78b159]
-                self.embed = discord.Embed(title='잡힌 말', color=curr_color,
-                                      description='\n'.join(emoji_deck))
-                self.embed.set_author(name=str(curr_player) + '차례',
-                                 icon_url=str(curr_player.avatar_url))
-
-                # 이모지 보드 생성 및 임베드에 추가
+                    emoji_deck.append(
+                        '⬛'.join(JG_EMOJIS[piece.symbol]
+                        [0 if piece.is_red else 1][i:i+3]
+                        for piece in game.table.deck)
+                        + '⬛'
+                        )
+                self.embed.add_field(name='잡힌 말',
+                                     value='\n'.join(emoji_deck), inline=False)
+                # 이모지 보드 생성
                 for i in range(3):
                     emoji_board = []
                     for j in range(3):
@@ -168,16 +170,15 @@ class Games(commands.Cog):
                                 )
                             )
                     self.embed.add_field(
-                        name='말판' if i == 0 else '⬛',
+                        name='말판' if i == 0 else '⬛'*15,
                         value='\n'.join(emoji_board), inline=False
                         )
                 #TODO: self.embed.set_footer()로 타이머 표시, 10초마다 갱신
                 return self.embed
 
             async def end_turn():
-                if not game.finished:
-                    make_embed()
-                else:
+                await game_msg.edit(embed=make_embed())
+                if game.finished:
                     winner = self.player1 if game.red_won else self.player2
                     cause = "왕을 잡았습니다!" if game.killed_king \
                         else "왕이 적진에서 한 턴을 버텼습니다!"
@@ -187,20 +188,24 @@ class Games(commands.Cog):
                         )
                     self.embed.set_author(name='십이장기')
                     self.embed.set_thumbnail(url=str(winner.avatar_url))
+                    await ctx.send(embed=self.embed)
                     for func, name in [
-                            (on_reaction_add, 'jg_reaction_add'),
-                            (on_reaction_remove, 'jg_reaction_remove'),
-                            (on_message, 'jg_message')
+                            (jg_reaction_add, 'on_reaction_add'),
+                            (jg_reaction_remove, 'on_reaction_remove'),
+                            (jg_message, 'on_message')
                             ]:
                         self.bot.remove_listener(func, name=name)
-                # 임베드 메시지 수정
-                await game_msg.edit(embed=make_embed())
 
             # 최초 임베드 메시지 전송 및 반응 추가
             game_msg = await ctx.send(embed=make_embed())
             for emoji in ACTION_EMOJIS[:18]:
                 #TODO: len(game.table.deck)에 따라 반응 추가하고 지우기
                 await game_msg.add_reaction(emoji)
+            
+            while not game.finished:
+                msg = await self.bot.wait_for('on_message')
+                if msg.content == '판엎':
+                    return
 
         await ready()
         await play()
